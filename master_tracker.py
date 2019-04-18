@@ -26,7 +26,7 @@ def init_data_nodes_tables():
     )
 
     cursor = db.cursor()
-    cursor.execute("CREATE TABLE `file_table` (`user_id` INT NOT NULL, `file_name` INT NOT NULL, `node_number` INT, `file_path` VARCHAR(255), `is_node_alive` BOOLEAN)")
+    cursor.execute("CREATE TABLE `file_table` (`user_id` INT NOT NULL, `file_name` VARCHAR(255) NOT NULL, `node_number` INT, `file_path` VARCHAR(255), `is_node_alive` BOOLEAN, `last_modified` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)")
 
 
 def init_system():
@@ -41,25 +41,34 @@ def listen_to_alive_messages(address, port):
     socket.connect("tcp://%s:%s" % (address, port))
     socket.setsockopt_string(zmq.SUBSCRIBE, '')
     print("Listening to ALIVE messages on %s:%s.." % (address, port))
+    db = mysql.connect(host="localhost", user="test", passwd="test", database="data_nodes")
+    cursor = db.cursor()
     while True:
-        received_message = socket.recv_string()
-        node_id, message = received_message.split()
-        node_id = int(node_id)
-        print("Tracker: received %s on %s:%s" %
-              (received_message, address, port))
+        try:
+            received_message = socket.recv_string(flags=zmq.NOBLOCK)
+            node_id, message = received_message.split()
+            node_id = int(node_id)
+            print("Tracker: received %s on %s:%s" % (received_message, address, port))
+            cursor.execute("UPDATE file_table SET is_node_alive = TRUE WHERE node_number=%d" % node_id)
+            db.commit()
+            # print(cursor.rowcount)
+        except zmq.Again as e:
+            cursor.execute("UPDATE file_table SET is_node_alive = FALSE WHERE last_modified < NOW() - INTERVAL 1 MINUTE")
+            db.commit()
+            # print(cursor.rowcount)
 
 
 if __name__ == "__main__":
-    with open('config.json') as config_file:
+    with open('config.json') as config_file:  # Should probably check this exists first.
         data = json.load(config_file)
         master_addr = data["master_trackers"]["address"]
         ports = data["master_trackers"]["ports"]
-    port = ports[int(sys.argv[1])]
+    port = ports[int(sys.argv[1])]  # Should probably check the argument is given first.
     active_listener = Process(
         target=listen_to_alive_messages, args=(master_addr, port,), daemon=True)
     active_listener.start()
     while True:
-        print("Doing the work of tards")
+        print("Master tracker rollin' yon way.")
         time.sleep(0.5)
 
 
