@@ -6,6 +6,7 @@ Distributed Operating Systems Course Project.
 - [ ] Authentication database replication.
 - [x] Send "I am Alive messages" from the data nodes to the master tracker using the publisher-subscriber model.
 - [ ] Master trackers should change the alive status of each client in their shared database.
-- [ ] File upload
+- [x] File upload
 - [ ] Uploaded file replication
-- [ ] File download
+- [x] File download
+- [ ] Integrate File upload and download with handshaking
