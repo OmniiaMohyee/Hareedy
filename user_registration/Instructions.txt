@@ -1,0 +1,3 @@
+1- install SQL server and python connector using Windows installer.
+2- set up OSProject database using OSProject_script.sql 
+3- install pyzmq (pip install pyzmq)
