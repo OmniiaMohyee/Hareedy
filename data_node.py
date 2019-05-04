@@ -51,12 +51,17 @@ def recieve_duplicate(recieve_deplicate_port,f_name,client_id,my_id):
     f.write(recieved_file)
     
 
-def send_duplicate(msg,dst_addr,dst_port):
+def send_duplicate(f_name,dst_addr,dst_port):
     print ("Sending file...")
     context = zmq.Context() 
     socket = context.socket(zmq.PAIR)
     socket.connect("tcp://%s:%s" % (str(dst_addr),str(dst_port)))
-    socket.send_string("here's the file.. bel hana we shefa") #To be done: send files not just string
+    with open(f_name,'rb') as f:
+        send_file = f.read(1024)
+        socket.send(send_file)
+        while send_file != "":
+            send_file = f.read(1024)
+            socket.send(send_file)
     print("file was sent successfully! yaaa")
 
 def replicate(rec_from_master_port,recieve_deplicate_port,my_id,num_ports): #wait or replicate msg from master tracker
@@ -73,12 +78,12 @@ def replicate(rec_from_master_port,recieve_deplicate_port,my_id,num_ports): #wai
         # socket2 = context.socket(zmq.PAIR)
         # open two threads here
         if (SorR == "recieve"):#use 3rd port for each data node
-            m = "I should reccieve from %s : %s" %(node_addr,node_port)
+            # m = "I should reccieve from %s : %s" %(node_addr,node_port)
             reciever = Process( target=recieve_duplicate, args=(recieve_deplicate_port,f_name,client_id,my_id), daemon=True)
             reciever.start()
         else:
-            m = "I should send to node on %s:%s" %(node_addr,node_port)
-            sender = Process( target=send_duplicate, args=(m,node_addr,node_port), daemon=True)
+            # m = "I should send to node on %s:%s" %(node_addr,node_port)
+            sender = Process( target=send_duplicate, args=(f_name,node_addr,node_port), daemon=True)
             sender.start()
     return
 #should data node know master tracker's 
