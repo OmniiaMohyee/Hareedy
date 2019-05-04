@@ -10,12 +10,11 @@ import threading
 
 data_node_sock = []
 
-
 def init_data_nodes_database():
     db = mysql.connect(
         host="localhost",
         user="root",
-        passwd="12345678"
+        passwd="hydragang"
     )
     cursor = db.cursor()
     cursor.execute("CREATE DATABASE data_nodes")
@@ -25,7 +24,7 @@ def init_data_nodes_tables():
     db = mysql.connect(
         host="localhost",
         user="root",
-        passwd="12345678",
+        passwd="hydragang",
         database="data_nodes"
     )
     cursor = db.cursor()
@@ -45,8 +44,8 @@ def listen_to_alive_messages(address, port):
     socket = context.socket(zmq.SUB)
     socket.connect("tcp://%s:%s" % (address, port))
     socket.setsockopt_string(zmq.SUBSCRIBE, '')
-    # print("Listening to ALIVE messages on %s:%s.." % (address, port))
-    db = mysql.connect(host="localhost", user="root", passwd="12345678", database="data_nodes")
+    print("Listening to ALIVE messages on %s:%s.." % (address, port))
+    db = mysql.connect(host="localhost", user="root", passwd="hydragang", database="data_nodes")
     cursor = db.cursor()
     while True:
         try:
@@ -67,7 +66,7 @@ def listen_to_alive_messages(address, port):
 ######===================== For Replication Part ================ #######
 
 def getInstanceCount(f_name):
-    db = mysql.connect(host="localhost", user="root", passwd="12345678", database="data_nodes")
+    db = mysql.connect(host="localhost", user="root", passwd="hydragang", database="data_nodes")
     cursor = db.cursor()
     cursor.execute('SELECT count(*) FROM file_table WHERE file_name=%s', [f_name])
     count =cursor.fetchall()
@@ -76,9 +75,8 @@ def getInstanceCount(f_name):
 
 
 def getSourceMachine(f_name):  
-    db = mysql.connect(host="localhost", user="root", passwd="12345678", database="data_nodes")
+    db = mysql.connect(host="localhost", user="root", passwd="hydragang", database="data_nodes")
     cursor = db.cursor()
-    # cursor.execute("SELECT node_number  FROM file_table WHERE last_modified= (SELECT MIN(`last_modified`) FROM file_table WHERE file_name=%s)", [f_name])
     cursor.execute("SELECT node_number  FROM file_table WHERE file_name=%s AND is_node_alive = TRUE", [f_name])
     source =cursor.fetchall()
     if(cursor.rowcount == 0):
@@ -91,9 +89,8 @@ def getSourceMachine(f_name):
 
 
 def selectMachineToCopyTo(f_name,offset):
-    db = mysql.connect(host="localhost", user="root", passwd="12345678", database="data_nodes")
+    db = mysql.connect(host="localhost", user="root", passwd="hydragang", database="data_nodes")
     cursor = db.cursor()
-    # cursor.execute("SELECT node_number FROM file_table WHERE (node_number NOT IN(SELECT node_number FROM file_table WHERE file_name=%s)) AND is_node_alive = TRUE", [f_name])
     cursor.execute("SELECT node_number FROM node_table WHERE (node_number NOT IN(SELECT b.node_number FROM node_table a LEFT JOIN file_table b ON a.node_number = b.node_number WHERE file_name=%s)) AND is_node_alive = TRUE", [f_name])
     selected =cursor.fetchall()
     print("selescted as dstination",selected)
@@ -138,7 +135,7 @@ def replicate():
     # master connect with 1st port of each data node
     # data node send on 2nd port
     # and recieve on 3rd port
-    db = mysql.connect(host="localhost", user="root", passwd="12345678", database="data_nodes")
+    db = mysql.connect(host="localhost", user="root", passwd="hydragang", database="data_nodes")
     cursor = db.cursor()
     while True:
         i =0
@@ -186,8 +183,7 @@ def get_client_request(name,sock,data_node_sock):
     print("request_type is " + str(request_type))
     print(data_node_sock)
     print(len(data_node_sock))
-
-    db = mysql.connect(host="localhost", user="root", passwd="12345678", database="data_nodes")
+    db = mysql.connect(host="localhost", user="root", passwd="hydragang", database="data_nodes")
     cursor = db.cursor()
     cursor.execute("SELECT node_number FROM file_table WHERE is_node_alive = TRUE;")
     selected =cursor.fetchall()
@@ -206,12 +202,11 @@ def get_client_request(name,sock,data_node_sock):
 def add_file(s):
     data_node_id,client_id,file_name = s.recv(2048).decode('utf-8').split('#')
     print("adding file from master tracker "+data_node_id)
-    db = mysql.connect(host="localhost", user="root", passwd="12345678", database="data_nodes")
+    db = mysql.connect(host="localhost", user="root", passwd="hydragang", database="data_nodes")
     cursor = db.cursor()
     cursor.execute("INSERT INTO file_table (user_id,node_number,file_name,file_path) VALUES ("+client_id+","+data_node_id+",'"+file_name+"','"+file_name+"');")
     db.commit()
     cursor.close()
-
     print("file added into DB!")
     s.send(bytes("SUCCESS!",'utf-8'))
 
@@ -220,16 +215,11 @@ def file_logger(file_log_port):
     ip = '127.0.0.1'
     s.bind((ip,file_log_port))
     s.listen(5)
-
     while True:
         c,addr = s.accept()
-
         t = threading.Thread(target = add_file,args =(c,))
         t.start()
     s.close()
-
-
-
 
 #def ayhaga():
 if __name__ == "__main__":
@@ -240,15 +230,10 @@ if __name__ == "__main__":
         master_addr = data["master_trackers"]["address"]
         ports = data["master_trackers"]["ports"]
         data_node_sock = data["data_nodes"]["client_ports"]
-
     for i in range(6):
         data_node_sock[i] = int(data_node_sock[i])
-
-    db = mysql.connect(host="localhost", user="root", passwd="12345678", database="data_nodes")
+    db = mysql.connect(host="localhost", user="root", passwd="hydragang", database="data_nodes")
     cursor = db.cursor()
-    # cursor.execute("SELECT exists(select * from file_table where user_id = 4 and file_name ='bp.mp4');")
-    # print(cursor.fetchall()[0][0])
-    # port = ports[int(sys.argv[1])]  # Should probably check the argument is given first.
     active_listener0 = Process(
         target=listen_to_alive_messages, args=(master_addr, ports[0],), daemon=True)
     active_listener1 = Process(
@@ -261,7 +246,6 @@ if __name__ == "__main__":
         target = replicate, args = (), daemon=True)
     file_log = Process(
         target = file_logger, args=(file_log_port,), daemon = True)
-  
     active_listener0.start()
     active_listener1.start()
     active_listener2.start()
