@@ -10,10 +10,8 @@ import signal
 import threading
 import socket
 
-
 local_host = '127.0.0.1'
-
-data_node_id = 0
+# data_node_id = 0
 
 # Publishes ALIVE messages to the port specified by the port number port every 1 second.
 # Each message is preceded by the id of the sending node.
@@ -35,51 +33,11 @@ def send_alive_messages(node_id, address, ports):
         sys.exit()
     while True:
         message_str = str("%d %s" % (node_id, "ALIVE"))
-        print("Node %d: Sending %s to %s:%s" % (node_id, message_str, address, port))
+        # print("Node %d: Sending %s to %s:%s" % (node_id, message_str, address, port))
         socket.send_string(message_str)
         time.sleep(1)
 
 ######===================== For Replication Part ================ #######
-def send_to_node(msg,sock):
-    return 
-
-def recv_from_node(sock):
-    return
-
-def recieve_duplicate1(recieve_deplicate_port):
-    print ("Recieving Replica...")
-    # local_port = data["data_nodes"]["management_ports"][my_id*num_ports+2]
-    context = zmq.Context() 
-    socket = context.socket(zmq.PAIR)
-    socket.bind("tcp://*:%s" % recieve_deplicate_port)
-    msg2 = socket.recv()
-    print(msg2)
-
-def send_duplicate1(msg,dst_addr,dst_port):
-    context = zmq.Context() 
-    socket = context.socket(zmq.PAIR)
-    socket.connect("tcp://%s:%s" % (str(dst_addr),str(dst_port)))
-    #socket.send_string("here's the file.. bel hana we shefa") #To be done: send files not just string
-
-    print("file was sent successfully! yaaa")
-
-## we need to know the file name here.
-# def recieve_duplicate(recieve_deplicate_port):
-#     print ("Recieving Replicate...")
-#     s = socket.socket()
-#     s.bind((local_host,int(recieve_deplicate_port)))
-#     s.listen(5)
-#     while True:
-#         c,addr = s.accept()
-#         t = threading.Thread(target = recv_from_node , args = (c))
-#         t.start()
-#     s.close()
-
-# def send_duplicate(msg,dst_addr,dst_port):
-#     s = socket.socket()
-#     s.connect((local_host,int(dst_port)))
-#     t = threading.Thread(target = send_to_node , args = (msg,c))
-#     t.start()
     
 def recieve_duplicate(recieve_deplicate_port,f_name,client_id,my_id):
     print ("Recieving file...")
@@ -87,10 +45,11 @@ def recieve_duplicate(recieve_deplicate_port,f_name,client_id,my_id):
     context = zmq.Context() 
     socket = context.socket(zmq.PAIR)
     socket.bind("tcp://*:%s" % recieve_deplicate_port)
-    msg2 = socket.recv()
-    msg2.split()
+    recieved_file = socket.recv()
     add_file(f_name,client_id,my_id)
-    # print(msg2)
+    f = open(f_name+"rep_node"+str(my_id)+".txt",'wb')
+    f.write(recieved_file)
+    
 
 def send_duplicate(msg,dst_addr,dst_port):
     print ("Sending file...")
@@ -100,7 +59,7 @@ def send_duplicate(msg,dst_addr,dst_port):
     socket.send_string("here's the file.. bel hana we shefa") #To be done: send files not just string
     print("file was sent successfully! yaaa")
 
-def replicate(rec_from_master_port,recieve_deplicate_port,my_id,data,num_ports): #wait or replicate msg from master tracker
+def replicate(rec_from_master_port,recieve_deplicate_port,my_id,num_ports): #wait or replicate msg from master tracker
     print ("Data Node in 'replicate' func, listening on port %s" %rec_from_master_port)
     context = zmq.Context() 
     socket1 = context.socket(zmq.PAIR)
@@ -211,7 +170,6 @@ def client_download(ip,node_to_client_down_port):
         print("Client connected to download socket with ip :<"+str(addr)+">")
         t = threading.Thread(target = download , args = ("downloadThread",c))
         t.start()
-
     s.close()
 
 
@@ -236,7 +194,7 @@ if __name__ == "__main__":
     client_upload_server.start()
     client_downlaod_server = Process(target = client_download, args=(local_host,node_to_client_down_port))
     client_downlaod_server.start()
-    replicate_reciever = Process(target=replicate, args=(rec_from_master_port,recieve_deplicate_port,data_node_id,data,num_ports))
+    replicate_reciever = Process(target=replicate, args=(rec_from_master_port,recieve_deplicate_port,data_node_id,num_ports))
     replicate_reciever.start()
 
     while True:
