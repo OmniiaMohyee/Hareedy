@@ -78,20 +78,36 @@ def replicate(rec_from_master_port,recieve_deplicate_port,my_id,num_ports): #wai
         # socket2 = context.socket(zmq.PAIR)
         # open two threads here
         if (SorR == "recieve"):#use 3rd port for each data node
-            # m = "I should reccieve from %s : %s" %(node_addr,node_port)
+            m = "I should reccieve from %s : %s" %(node_addr,node_port)
             reciever = Process( target=recieve_duplicate, args=(recieve_deplicate_port,f_name,client_id,my_id), daemon=True)
             reciever.start()
         else:
-            # m = "I should send to node on %s:%s" %(node_addr,node_port)
-            sender = Process( target=send_duplicate, args=(f_name,node_addr,node_port), daemon=True)
+            m = "I should send to node on %s:%s" %(node_addr,node_port)
+            sender = Process( target=send_duplicate, args=(m,node_addr,node_port), daemon=True)
             sender.start()
     return
 #should data node know master tracker's 
 
 ######===================== For Client Upload/Download Part ================ #######
+def add_file_client(file_name,client_id,data_node_id,sock):
+    # data_node_id = 0
+    file_log_port = 20010
+    ip = '127.0.0.1'
+    s = socket.socket()
+    s.connect((ip,file_log_port))
+
+    print("going to add file! data node id is"+str(data_node_id))
+
+    nid_cid_fname = str(data_node_id )+ '#'+str(client_id)+'#'+file_name
+    s.send(bytes(nid_cid_fname,'utf-8'))
+    status = s.recv(1024)
+    sock.send(status)
+
+
+
 def add_file(file_name,client_id,data_node_id):
     # data_node_id = 0
-    db = mysql.connect(host="localhost", user="root", passwd="hydragang", database="data_nodes")
+    db = mysql.connect(host="localhost", user="root", passwd="12345678", database="data_nodes")
     cursor = db.cursor()
     cursor.execute("INSERT INTO file_table (user_id,node_number,file_name,file_path) VALUES ("+str(client_id)+","+str(data_node_id)+",'"+file_name+"','"+file_name+"');")
     db.commit()
@@ -99,7 +115,7 @@ def add_file(file_name,client_id,data_node_id):
     print("file added into DB!")
 
 def check_file(file_name,client_id):
-    db = mysql.connect(host="localhost", user="root", passwd="hydragang", database="data_nodes")
+    db = mysql.connect(host="localhost", user="root", passwd="12345678", database="data_nodes")
     cursor = db.cursor()
     cursor.execute("SELECT exists(select * from file_table where user_id = "+str(client_id)+" and file_name = '"+file_name+"' );")
     return (cursor.fetchall()[0][0] != 0)
@@ -133,7 +149,7 @@ def upload(name,sock,data_node_id):
     file_size = int(file_size)
     client_id = int(client_id)
 
-    add_file(file_name,client_id,data_node_id)
+    add_file_client(file_name,client_id,data_node_id,sock)
 
     f = open(file_name,'wb')
     data = sock.recv(1024)  
@@ -189,16 +205,20 @@ if __name__ == "__main__":
         rec_from_master_port = data["data_nodes"]["management_ports"][data_node_id*num_ports]#1st port for sending
         # send_deplicate_port = data["data_nodes"]["management_ports"][data_node_id*num_ports + 1]#2nd port for sending
         recieve_deplicate_port = data["data_nodes"]["management_ports"][data_node_id*num_ports + 2]#3rd port for listening on
-        node_to_client_up_port = int(data["data_nodes"]["client_ports"][data_node_id*2])
-        node_to_client_down_port = int(data["data_nodes"]["client_ports"][data_node_id*2+1])
+        node_to_client_up_port = int(data["data_nodes"]["client_ports"][data_node_id*3])
+        node_to_client_down_port1 = int(data["data_nodes"]["client_ports"][data_node_id*3+1])
+        node_to_client_down_port2 = int(data["data_nodes"]["client_ports"][data_node_id*3+2])
 
     alive_sender = Process(target=send_alive_messages, args=(data_node_id, master_addr, ports,), daemon=True)
     alive_sender.start()
 
     client_upload_server = Process(target = client_upload, args=(local_host,node_to_client_up_port,data_node_id))   #node_to_client_up_port needs to be read from JSON!
     client_upload_server.start()
-    client_downlaod_server = Process(target = client_download, args=(local_host,node_to_client_down_port))
-    client_downlaod_server.start()
+    client_downlaod_server1 = Process(target = client_download, args=(local_host,node_to_client_down_port1))
+    client_downlaod_server1.start()
+    client_downlaod_server2 = Process(target = client_download, args=(local_host,node_to_client_down_port2))
+    client_downlaod_server2.start()
+    
     replicate_reciever = Process(target=replicate, args=(rec_from_master_port,recieve_deplicate_port,data_node_id,num_ports))
     replicate_reciever.start()
 
