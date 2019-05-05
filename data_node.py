@@ -38,13 +38,13 @@ def send_alive_messages(node_id, address, ports):
 
 ######===================== For Replication Part ================ #######
     
-def recieve_duplicate(recieve_deplicate_port,f_name,client_id,my_id):
+def recieve_duplicate(recieve_deplicate_port,f_name,client_id,my_id,master_addr):
     print ("Recieving file...")
     context = zmq.Context() 
     socket = context.socket(zmq.PAIR)
     socket.bind("tcp://*:%s" % recieve_deplicate_port)
     recieved_file = socket.recv()
-    add_file(f_name,client_id,my_id)
+    add_file(f_name,client_id,my_id,master_addr)
     f = open(f_name+"rep_node"+str(my_id)+".txt",'wb')
     f.write(recieved_file)
     
@@ -63,7 +63,7 @@ def send_duplicate(f_name,dst_addr,dst_port):
     print("file was sent successfully! yaaa")
 
 
-def replicate(rec_from_master_port,recieve_deplicate_port,my_id,num_ports): #wait or replicate msg from master tracker
+def replicate(rec_from_master_port,recieve_deplicate_port,my_id,num_ports,master_addr): #wait or replicate msg from master tracker
     print ("Data Node in 'replicate' func, listening on port %s" %rec_from_master_port)
     context = zmq.Context() 
     socket1 = context.socket(zmq.PAIR)
@@ -74,18 +74,18 @@ def replicate(rec_from_master_port,recieve_deplicate_port,my_id,num_ports): #wai
         SorR, f_name, client_id, node_addr, node_port  = msg.split()
         SorR = str(SorR) 
         if (SorR == "recieve"):#use 3rd port for each data node
-            reciever = Process( target=recieve_duplicate, args=(recieve_deplicate_port,f_name,client_id,my_id), daemon=True)
+            reciever = Process( target=recieve_duplicate, args=(recieve_deplicate_port,f_name,client_id,my_id,master_addr), daemon=True)
             reciever.start()
         else:
             sender = Process( target=send_duplicate, args=(f_name,node_addr,node_port), daemon=True)
             sender.start()
 
 ######===================== For Client Upload/Download Part ================ #######
-def add_file_client(file_name,client_id,data_node_id,sock):
+def add_file_client(file_name,client_id,data_node_id,sock,master_addr):
     file_log_port = 20010
     ip = '127.0.0.1'
     s = socket.socket()
-    s.connect((ip,file_log_port))
+    s.connect((master_addr,file_log_port))
     print("going to add file! data node id is"+str(data_node_id))
     nid_cid_fname = str(data_node_id )+ '#'+str(client_id)+'#'+file_name
     s.send(bytes(nid_cid_fname,'utf-8'))
@@ -93,12 +93,15 @@ def add_file_client(file_name,client_id,data_node_id,sock):
     sock.send(status)
 
 
-def add_file(file_name,client_id,data_node_id):
-    db = mysql.connect(host="localhost", user="root", passwd="hydragang", database="data_nodes")
-    cursor = db.cursor()
-    cursor.execute("INSERT INTO file_table (user_id,node_number,file_name,file_path) VALUES ("+str(client_id)+","+str(data_node_id)+",'"+file_name+"','"+file_name+"');")
-    db.commit()
-    cursor.close()
+def add_file(file_name,client_id,data_node_id,master_addr):
+    file_log_port = 20010
+    ip = '127.0.0.1'
+    s = socket.socket()
+    s.connect((master_addr,file_log_port))
+    print("going to add file! data node id is"+str(data_node_id))
+    nid_cid_fname = str(data_node_id )+ '#'+str(client_id)+'#'+file_name
+    s.send(bytes(nid_cid_fname,'utf-8'))
+    status = s.recv(1024)
     print("file added into DB!")
 
 def check_file(file_name,client_id):
@@ -127,14 +130,14 @@ def download(name,sock):
         sock.send(bytes("ERR",'utf-8'))
     sock.close()
 
-def upload(name,sock,data_node_id):
+def upload(name,sock,data_node_id,master_addr):
     name_size = sock.recv(2048).decode('utf-8')
     file_name, file_size,client_id = name_size.split('#')
     print(file_size)
     print(client_id)
     file_size = int(file_size)
     client_id = int(client_id)
-    add_file_client(file_name,client_id,data_node_id,sock)
+    add_file_client(file_name,client_id,data_node_id,sock,master_addr)
     f = open(file_name,'wb')
     data = sock.recv(1024)  
     totalrecv = len(data)
@@ -151,7 +154,7 @@ def upload(name,sock,data_node_id):
     print("Upload is Complete.")
     
 
-def client_upload(ip,node_to_client_up_port,data_node_id):
+def client_upload(ip,node_to_client_up_port,data_node_id,master_addr):
     s = socket.socket()
     s.bind((ip,node_to_client_up_port))
     s.listen(5)
@@ -159,7 +162,7 @@ def client_upload(ip,node_to_client_up_port,data_node_id):
     while True :
         c,addr = s.accept()        
         print("Client connected to upload socket with ip :<"+str(addr)+">")
-        t = threading.Thread(target = upload , args = ("uploadThread",c,data_node_id))
+        t = threading.Thread(target = upload , args = ("uploadThread",c,data_node_id,master_addr))
         t.start()
     s.close()
 
@@ -193,14 +196,14 @@ if __name__ == "__main__":
     alive_sender = Process(target=send_alive_messages, args=(data_node_id, master_addr, ports,), daemon=True)
     alive_sender.start()
 
-    client_upload_server = Process(target = client_upload, args=(local_host,node_to_client_up_port,data_node_id))
+    client_upload_server = Process(target = client_upload, args=(local_host,node_to_client_up_port,data_node_id,master_addr))
     client_upload_server.start()
     client_downlaod_server1 = Process(target = client_download, args=(local_host,node_to_client_down_port1))
     client_downlaod_server1.start()
     client_downlaod_server2 = Process(target = client_download, args=(local_host,node_to_client_down_port2))
     client_downlaod_server2.start()
     
-    replicate_reciever = Process(target=replicate, args=(rec_from_master_port,recieve_deplicate_port,data_node_id,num_ports))
+    replicate_reciever = Process(target=replicate, args=(rec_from_master_port,recieve_deplicate_port,data_node_id,num_ports,master_addr))
     replicate_reciever.start()
     while True:
         # print("Data node should do other stuff here.")
