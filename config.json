@@ -71,9 +71,9 @@
     "database_info": {
         "db_pass": "hydragang",
         "db_name": [
-           "db0",
-            "db1",
-            "db2"
+           "UserReg",
+            "UserReg",
+            "UserReg"
         ]
     }
 }
