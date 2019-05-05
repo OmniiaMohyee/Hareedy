@@ -142,12 +142,12 @@ def replicate():
         try:
             cursor.execute("SELECT file_name,user_id FROM file_table WHERE file_name IN (SELECT distinct file_name FROM file_table) group by file_name")
             files =cursor.fetchall()
-            print("num of files: ",cursor.rowcount)
+            # print("num of files: ",cursor.rowcount)
             for file in files: #for each distinct file instances:    
                 count = getInstanceCount(file[0]) 
                 print("count of existance = ", count)
                 if (count < 3):
-                    print ("file number ",i, " with name: ", file[0]," count = ",count)
+                    # print ("file number ",i, " with name: ", file[0]," count = ",count)
                     src = getSourceMachine(file[0])
                     if(src == -1):
                         break
@@ -177,6 +177,12 @@ def wait_clients(port,data_node_sock):
     s.close()
  
 
+def check_file(file_name,client_id):
+    db = mysql.connect(host="localhost", user="root", passwd="hydragang", database="data_nodes")
+    cursor = db.cursor()
+    cursor.execute("SELECT exists(select * from file_table where user_id = "+str(client_id)+" and file_name = '"+file_name+"' );")
+    return (cursor.fetchall()[0][0] != 0)
+
 def get_client_request(name,sock,data_node_sock):
     print("got here! \n")
     request_type = sock.recv(1024).decode('utf-8')
@@ -185,19 +191,28 @@ def get_client_request(name,sock,data_node_sock):
     print(len(data_node_sock))
     db = mysql.connect(host="localhost", user="root", passwd="hydragang", database="data_nodes")
     cursor = db.cursor()
-    cursor.execute("SELECT node_number FROM file_table WHERE is_node_alive = TRUE;")
-    selected =cursor.fetchall()
-    print(selected)
-    #need to generate random 
+    cursor.execute("SELECT distinct node_number FROM file_table WHERE is_node_alive = TRUE;")
+    nodes =cursor.fetchall()
     if request_type == 'U':
         i = random.randrange(0, 3, 6)
         i = 3
         sock.send(bytes(str(data_node_sock[i]),'utf-8'))
     else:
-        sock_to_send = str(data_node_sock[1])+'#'+str(data_node_sock[2])+'#'+str(data_node_sock[4])+'#'
-        sock_to_send += str(data_node_sock[5])+'#'+str(data_node_sock[7])+'#'+str(data_node_sock[8])
-        print(sock_to_send)
-        sock.send(bytes(sock_to_send,'utf-8'))
+        file_name,client_id= sock.recv(2048).decode('utf-8').split('#')
+        client_id = int(client_id)
+        print(file_name)
+        if check_file(file_name,client_id):
+            sock_to_send = ""
+            for node in nodes:
+                sock_to_send += str(data_node_sock[node[0]*3+1])+'#'+str(data_node_sock[node[0]*3+2])+'#'
+            sock_to_send = sock_to_send[0:len(sock_to_send)-1]
+            print(sock_to_send)
+            print("sended: EXISTS, Choose a port")
+            sock.send(bytes("EXISTS, Choose a port",'utf-8'))
+            sock.send(bytes(sock_to_send,'utf-8'))
+        else:
+            sock.send(bytes("File doesn't exist",'utf-8'))
+            print("sended:File doesn't exist")
 
 def add_file(s):
     data_node_id,client_id,file_name = s.recv(2048).decode('utf-8').split('#')

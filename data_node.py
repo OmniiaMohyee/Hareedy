@@ -45,7 +45,7 @@ def recieve_duplicate(recieve_deplicate_port,f_name,client_id,my_id,master_addr)
     socket.bind("tcp://*:%s" % recieve_deplicate_port)
     recieved_file = socket.recv()
     add_file(f_name,client_id,my_id,master_addr)
-    f = open(f_name+"rep_node"+str(my_id)+".txt",'wb')
+    f = open(f_name,'wb')#+"rep_node"+str(my_id)+".txt"
     f.write(recieved_file)
     
 
@@ -104,19 +104,13 @@ def add_file(file_name,client_id,data_node_id,master_addr):
     status = s.recv(1024)
     print("file added into DB!")
 
-def check_file(file_name,client_id):
-    db = mysql.connect(host="localhost", user="root", passwd="hydragang", database="data_nodes")
-    cursor = db.cursor()
-    cursor.execute("SELECT exists(select * from file_table where user_id = "+str(client_id)+" and file_name = '"+file_name+"' );")
-    return (cursor.fetchall()[0][0] != 0)
-
 
 def download(name,sock):
-    client_id = int(sock.recv(1024).decode('utf-8'))
-    file_name = sock.recv(1024).decode('utf-8')
+    file_name,client_id = sock.recv(1024).decode('utf-8').split('#')
+    client_id = int(client_id)
     print(file_name)
     print(os.path.isfile(file_name))
-    if os.path.isfile(file_name) and check_file(file_name,client_id):
+    if os.path.isfile(file_name):
         sock.send(bytes("EXISTS" + str(os.path.getsize(file_name)),'utf-8'))    
         user_response = sock.recv(1024).decode('utf-8')
         if user_response[:2] == 'OK':
