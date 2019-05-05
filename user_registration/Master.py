@@ -7,7 +7,7 @@ from InterfaceDB import InterfaceDB
 
 
 # initialize needed values from json file
-with open('../config.json') as config_file:  
+with open('config.json') as config_file:  
         data = json.load(config_file)
         pairPorts=data["master_slave"]["pair_ports"]
         readPort = data["master_slave"]["repreq_ports"][0]
