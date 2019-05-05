@@ -94,6 +94,46 @@ def main(client_id):
 			download(data_s,client_id,file_name)
 	return 
 if __name__ == '__main__':
+		
+	notConnected=True
+
+	print("Welcome my fellow Human! ^_^")
+	print("How Would you like to proceed?")
+	option = chooseOp("Please enter a number!")
+	connected=False
+	while True:
+		if option=='1':
+			if userLogin():
+				print("Done login")
+				connected=True
+				break
+			elif tryAgain("Choose another op"):
+				option=chooseOp("Please enter a number!")
+				continue
+			else:
+				option='3'
+				continue
+		elif option=='2':
+			if userSignup():
+				print("Done signup")
+				connected=True
+				break
+			elif tryAgain("Choose another op"):
+				option=chooseOp("Please enter a number!")
+				continue
+			else:
+				option='3'
+				continue
+		elif option=='3':
+			print("bye then!")
+			connected=False
+			break
+		else:
+			option= chooseOp("Please enter a valid option number!")
+	
+	readSocket.close()
+
+	if connected:	
 	client_id = int(sys.argv[1])
 	main(client_id)
 

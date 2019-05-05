@@ -6,7 +6,7 @@ import json
 from InterfaceDB import InterfaceDB
 
 
-with open('../config.json') as config_file: 
+with open('config.json') as config_file: 
         data = json.load(config_file)
         pairPort=data["master_slave"]["pair_ports"][int(sys.argv[1])-1]
         servPort = data["master_slave"]["repreq_ports"][int(sys.argv[1])]
