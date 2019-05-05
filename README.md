@@ -9,4 +9,3 @@ Distributed Operating Systems Course Project.
 - [x] File upload
 - [ ] Uploaded file replication
 - [x] File download
-- [ ] Integrate File upload and download with handshaking
