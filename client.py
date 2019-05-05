@@ -69,7 +69,7 @@ def main(client_id):
 	if choice == "U":
 		print("going to upload")
 		s.send(bytes("U",'utf-8'))
-		data_node_port = int(s.recv(1024).decode('utf-8'))s
+		data_node_port = int(s.recv(1024).decode('utf-8'))
 		data_s = socket.socket()
 		data_s.connect((host,data_node_port))
 		upload(data_s,client_id)
