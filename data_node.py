@@ -34,7 +34,7 @@ def send_alive_messages(node_id, address, ports):
         sys.exit()
     while True:
         message_str = str("%d %s" % (node_id, "ALIVE"))
-        print("Node %d: Sending %s to %s:%s" % (node_id, message_str, address, port))
+        # print("Node %d: Sending %s to %s:%s" % (node_id, message_str, address, port))
         socket.send_string(message_str)
         time.sleep(1)
 
@@ -60,6 +60,7 @@ def recieve_duplicate(recieve_deplicate_port,f_name,client_id,my_id,master_addr)
         print(recieve_deplicate_port)
         socket.bind("tcp://*:%s" % recieve_deplicate_port)
         recieved_file = socket.recv().decode("utf-8")
+        print("recieved file data")
         add_file(f_name,client_id,my_id,master_addr)
         f = open(f_name,'wb')#+"rep_node"+str(my_id)+".txt"
         f.write(recieved_file)
@@ -73,13 +74,14 @@ def send_duplicate(f_name,dst_addr,dst_port):
     # context = zmq.Context() 
     global context
     socket = context.socket(zmq.PAIR)
+    print(dst_addr,dst_port)
     socket.connect("tcp://%s:%s" % (str(dst_addr),str(dst_port)))
     with open(f_name,'rb') as f:
         send_file = f.read(1024)
-        socket.send(send_file)
+        socket.send_string(send_file)
         while send_file != "":
             send_file = f.read(1024)
-            socket.send(send_file)
+            socket.send_string(send_file)
     print("file was sent successfully! yaaa")
 
 

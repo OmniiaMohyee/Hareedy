@@ -56,7 +56,7 @@ def listen_to_alive_messages(address, port):
             received_message = socket.recv_string(flags=zmq.NOBLOCK)
             node_id, message = received_message.split()
             node_id = int(node_id)
-            print("Tracker: received %s on %s:%s" % (received_message, address, port))
+            # print("Tracker: received %s on %s:%s" % (received_message, address, port))
             cursor.execute("UPDATE node_table SET is_node_alive = TRUE WHERE node_number=%d" % node_id)
             cursor.execute("UPDATE file_table SET is_node_alive = TRUE WHERE node_number=%d" % node_id)
             db.commit()
