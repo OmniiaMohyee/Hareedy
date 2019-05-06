@@ -24,7 +24,7 @@ class InterfaceDB:
 
         try:
             # insert data into table using SQL query.
-            cur.execute('INSERT INTO Users VALUES(%s,%s,%s,"1" )',[username,email,password])
+            cur.execute('INSERT INTO Users VALUES(%s,%s,%s )',[username,email,password])
             cnx.commit()
             return 1
         except mysql.connector.Error as err:

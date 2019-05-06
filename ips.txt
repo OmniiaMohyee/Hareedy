@@ -1,0 +1,7 @@
+1 client
+2 datanodes/slave omniaa 192.168.137.115 / zeinab 192.168.137.167
+1 master/master 192.168.43.199
+
+#fixed connect an bind
+#add check fro empty input from user
+    

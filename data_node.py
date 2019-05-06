@@ -11,47 +11,63 @@ import threading
 import socket
 
 local_host = '127.0.0.1'
-
+context = zmq.Context()
 # Publishes ALIVE messages to the port specified by the port number port every 1 second.
 # Each message is preceded by the id of the sending node.
 def send_alive_messages(node_id, address, ports):
-    context = zmq.Context()
+    # context = zmq.Context() 
+    global context
     socket = context.socket(zmq.PUB)
     port = ""
-    for sample_port in ports:
-        try:
-            socket.bind("tcp://%s:%s" % (address, sample_port))
-            print("Sending ALIVE messages to %s:%s" % (address, sample_port))
-            port = sample_port
-            break
-        except zmq.ZMQError:
-            print("Could not connect to %s:%s.. Trying another port-address.." % (address, sample_port))
+    while(port == ""):
+        for sample_port in ports:
+            try:
+                socket.connect("tcp://%s:%s" % (address, sample_port))
+                print("Sending ALIVE messages to %s:%s" % (address, sample_port))
+                port = sample_port
+                break
+            except zmq.ZMQError:
+                print("Could not connect to %s:%s.. Trying another port-address.." % (address, sample_port))
     if port == "":
         print("Error: there are no free ports. Exiting..")
         os.killpg(os.getpgid(os.getpid()), signal.SIGTERM)  # This is done to kill the parent process as well.
         sys.exit()
     while True:
         message_str = str("%d %s" % (node_id, "ALIVE"))
-        # print("Node %d: Sending %s to %s:%s" % (node_id, message_str, address, port))
+        print("Node %d: Sending %s to %s:%s" % (node_id, message_str, address, port))
         socket.send_string(message_str)
         time.sleep(1)
 
 ######===================== For Replication Part ================ #######
-    
+def add_file(file_name,client_id,data_node_id,master_addr):
+    file_log_port = 20010
+    ip = '127.0.0.1'
+    s = socket.socket()
+    s.connect((master_addr,file_log_port))
+    print("going to add file! data node id is"+str(data_node_id))
+    nid_cid_fname = str(data_node_id )+ '#'+str(client_id)+'#'+file_name
+    s.send(bytes(nid_cid_fname,'utf-8'))
+    status = s.recv(1024)
+    print("file added into DB!")    
+
 def recieve_duplicate(recieve_deplicate_port,f_name,client_id,my_id,master_addr):
     print ("Recieving file...")
-    context = zmq.Context() 
+    # context = zmq.Context() 
+    global context
     socket = context.socket(zmq.PAIR)
+    print(recieve_deplicate_port)
     socket.bind("tcp://*:%s" % recieve_deplicate_port)
-    recieved_file = socket.recv()
+    recieved_file = socket.recv().decode("utf-8")
     add_file(f_name,client_id,my_id,master_addr)
     f = open(f_name,'wb')#+"rep_node"+str(my_id)+".txt"
     f.write(recieved_file)
+    socket.close()
     
 
 def send_duplicate(f_name,dst_addr,dst_port):
     print ("Sending file...")
-    context = zmq.Context() 
+    # context = zmq.Context() 
+    global context
     socket = context.socket(zmq.PAIR)
     socket.connect("tcp://%s:%s" % (str(dst_addr),str(dst_port)))
     with open(f_name,'rb') as f:
@@ -65,16 +81,19 @@ def send_duplicate(f_name,dst_addr,dst_port):
 
 def replicate(rec_from_master_port,recieve_deplicate_port,my_id,num_ports,master_addr): #wait or replicate msg from master tracker
     print ("Data Node in 'replicate' func, listening on port %s" %rec_from_master_port)
-    context = zmq.Context() 
+    # context = zmq.Context() 
+    global context
     socket1 = context.socket(zmq.PAIR)
-    socket1.bind("tcp://*:%s" % rec_from_master_port)   
+    socket1.connect("tcp://%s:%s" %(master_addr ,rec_from_master_port))   
     while True:
-        msg = socket1.recv_string()
+        print("Waiting to recieve",rec_from_master_port)
+        msg = socket1.recv().decode("utf-8")
         print("yes.. i recieved a message from master tracker")
         SorR, f_name, client_id, node_addr, node_port  = msg.split()
         SorR = str(SorR) 
         if (SorR == "recieve"):#use 3rd port for each data node
-            reciever = Process( target=recieve_duplicate, args=(recieve_deplicate_port,f_name,client_id,my_id,master_addr), daemon=True)
+            recieve_port = recieve_deplicate_port + node_port
+            reciever = Process( target=recieve_duplicate, args=(recieve_port,f_name,client_id,my_id,master_addr), daemon=True)
             reciever.start()
         else:
             sender = Process( target=send_duplicate, args=(f_name,node_addr,node_port), daemon=True)
@@ -91,18 +110,6 @@ def add_file_client(file_name,client_id,data_node_id,sock,master_addr):
     s.send(bytes(nid_cid_fname,'utf-8'))
     status = s.recv(1024)
     sock.send(status)
-
-
-def add_file(file_name,client_id,data_node_id,master_addr):
-    file_log_port = 20010
-    ip = '127.0.0.1'
-    s = socket.socket()
-    s.connect((master_addr,file_log_port))
-    print("going to add file! data node id is"+str(data_node_id))
-    nid_cid_fname = str(data_node_id )+ '#'+str(client_id)+'#'+file_name
-    s.send(bytes(nid_cid_fname,'utf-8'))
-    status = s.recv(1024)
-    print("file added into DB!")
 
 
 def download(name,sock):
@@ -186,8 +193,8 @@ if __name__ == "__main__":
         node_to_client_up_port = int(data["data_nodes"]["client_ports"][data_node_id*3])
         node_to_client_down_port1 = int(data["data_nodes"]["client_ports"][data_node_id*3+1])
         node_to_client_down_port2 = int(data["data_nodes"]["client_ports"][data_node_id*3+2])
-
-    alive_sender = Process(target=send_alive_messages, args=(data_node_id, master_addr, ports,), daemon=True)
+    
+    alive_sender = Process(target=send_alive_messages, args=(data_node_id, master_addr, ports), daemon=True)
     alive_sender.start()
 
     client_upload_server = Process(target = client_upload, args=(local_host,node_to_client_up_port,data_node_id,master_addr))
