@@ -51,17 +51,21 @@ def add_file(file_name,client_id,data_node_id,master_addr):
     print("file added into DB!")    
 
 def recieve_duplicate(recieve_deplicate_port,f_name,client_id,my_id,master_addr):
+
     print ("Recieving file...")
     # context = zmq.Context() 
     global context
-    socket = context.socket(zmq.PAIR)
-    print(recieve_deplicate_port)
-    socket.bind("tcp://*:%s" % recieve_deplicate_port)
-    recieved_file = socket.recv().decode("utf-8")
-    add_file(f_name,client_id,my_id,master_addr)
-    f = open(f_name,'wb')#+"rep_node"+str(my_id)+".txt"
-    f.write(recieved_file)
-    socket.close()
+    try:
+        socket = context.socket(zmq.PAIR)
+        print(recieve_deplicate_port)
+        socket.bind("tcp://*:%s" % recieve_deplicate_port)
+        recieved_file = socket.recv().decode("utf-8")
+        add_file(f_name,client_id,my_id,master_addr)
+        f = open(f_name,'wb')#+"rep_node"+str(my_id)+".txt"
+        f.write(recieved_file)
+        socket.close()
+    except zmq.ZMQError:
+        print("Error in rec dup")
     
 
 def send_duplicate(f_name,dst_addr,dst_port):
@@ -84,7 +88,7 @@ def replicate(rec_from_master_port,recieve_deplicate_port,my_id,num_ports,master
     # context = zmq.Context() 
     global context
     socket1 = context.socket(zmq.PAIR)
-    socket1.connect("tcp://%s:%s" %(master_addr ,rec_from_master_port))   
+    socket1.bind("tcp://*:%s" %rec_from_master_port)   
     while True:
         print("Waiting to recieve",rec_from_master_port)
         msg = socket1.recv().decode("utf-8")

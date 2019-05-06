@@ -11,6 +11,8 @@ import threading
 data_node_sock = []
 context = zmq.Context()
 
+# send_rep=[][]
+
 def init_data_nodes_database():
     db = mysql.connect(
         host="localhost",
@@ -158,7 +160,9 @@ def replicate():
                         break
                     dst1 = selectMachineToCopyTo(file[0],0)
                     dst2 = selectMachineToCopyTo(file[0],1)
+                    # if not_operating1:
                     NotifyMachineDataTransfer(src, dst1, file[0],file[1])
+                    # if not_operating1:    
                     NotifyMachineDataTransfer(src, dst2, file[0],file[1])
                     time.sleep(1)
                     i = i+1
