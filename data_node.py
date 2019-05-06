@@ -102,7 +102,7 @@ def replicate(rec_from_master_port,recieve_deplicate_port,my_id,num_ports,master
             reciever = Process( target=recieve_duplicate, args=(recieve_port,f_name,client_id,my_id,master_addr), daemon=True)
             reciever.start()
         else:
-            sender = Process( target=send_duplicate, args=(f_name,node_addr,node_port), daemon=True)
+            sender = Process( target=send_duplicate, args=(f_name,node_addr,node_port+my_id), daemon=True)
             sender.start()
 
 ######===================== For Client Upload/Download Part ================ #######
