@@ -10,14 +10,14 @@ import random
 
 # initialize needed values from json file
 with open('config.json') as config_file:  
-        data = json.load(config_file)
-        readPorts = data["master_slave"]["repreq_ports"]
-        writePort=data["master_slave"]["write_port"]
-        readIPs=data["master_slave"]["address"]
-        writeIP=data["master_slave"]["address"][0]
-		#client and mastertracker comm
-		host = data["master_trackers"]["address"]
-		port=data["master_trackers"]["clientports"]
+	data = json.load(config_file)
+	readPorts = data["master_slave"]["repreq_ports"]
+	writePort=data["master_slave"]["write_port"]
+	readIPs=data["master_slave"]["address"]
+	writeIP=data["master_slave"]["address"][0]
+	#client and mastertracker comm
+	host = data["master_trackers"]["address"]
+	port=data["master_trackers"]["clientports"]
 
 
 #randomize starting readServer!
@@ -56,7 +56,7 @@ def restart_socket():
 def inputData(field):
     data=input("Please enter "+field+":")
     while True:
-        if(data.find(' ')!=-1):
+        if(data.find(' ')!=-1 or data==""):
             data=input(field+" can't have spaces, try again!: ")
         else:
             return data
@@ -256,10 +256,10 @@ def main(client_id):
 		msg = s.recv(1024).decode('utf-8')
 		print(msg)
 		if msg[:6] == 'EXISTS':		
-		data_node_ports = s.recv(3072).decode('utf-8').split('#')
-		print(data_node_ports)
-		print("choose a port to download from")
-		i = int(input())
+			data_node_ports = s.recv(3072).decode('utf-8').split('#')
+			print(data_node_ports)
+			print("choose a port to download from")
+			i = int(input())
 		while i>len(data_node_ports) or i<1:
 			print("enter a valid port number")
 			i = int(input())

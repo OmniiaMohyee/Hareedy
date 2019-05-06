@@ -44,7 +44,7 @@ def listen_to_alive_messages(address, port):
     global context
     # context = zmq.Context()
     socket = context.socket(zmq.SUB)
-    socket.bind("tcp://%s:%s" % (address, port))
+    socket.bind("tcp://*:%s" %  port)
     socket.setsockopt_string(zmq.SUBSCRIBE, '')
     print("Listening to ALIVE messages on %s:%s.." % (address, port))
     db = mysql.connect(host="localhost", user="root", passwd="hydragang", database="data_nodes")
@@ -54,7 +54,7 @@ def listen_to_alive_messages(address, port):
             received_message = socket.recv_string(flags=zmq.NOBLOCK)
             node_id, message = received_message.split()
             node_id = int(node_id)
-            print("Tracker: received %s on %s:%s" % (received_message, address, port))
+            # print("Tracker: received %s on %s:%s" % (received_message, address, port))
             cursor.execute("UPDATE node_table SET is_node_alive = TRUE WHERE node_number=%d" % node_id)
             cursor.execute("UPDATE file_table SET is_node_alive = TRUE WHERE node_number=%d" % node_id)
             db.commit()
@@ -124,17 +124,38 @@ def NotifyMachineDataTransfer(src, dst, f_name,client_id):
         # context2 = zmq.Context()
         print("send msg to src on port %s and addr %s" %(src_node_port_p2,src_node_addr))
         socket = context.socket(zmq.PAIR)
-        socket.connect("tcp://%s:%s" % (src_node_addr, src_node_port_p2))#master connect with them on first port
+        # socket.connect("tcp://%s:%s" % (src_node_addr, src_node_port_p2))#master connect with them on first port
+        socket.bind("tcp://*:%s" % src_node_port_p2)#master connect with them on first port
+        print("binddddd")
         socket.send_string("send %s %s %s %s" % (f_name, client_id, dst_node_addr, dst_node_port)) #3rd port
-        
+
         print("send msg to dst on port %s and addr %s" %(dst_node_port_p2,dst_node_addr))
         socket2 = context.socket(zmq.PAIR)
-        socket2.connect("tcp://%s:%s" % (dst_node_addr, dst_node_port_p2))
+        # socket2.connect("tcp://%s:%s" % (dst_node_addr, dst_node_port_p2))
+        socket2.bind("tcp://*:%s" % dst_node_port_p2)
         socket2.send_string("recieve %s %s %s %s" % (f_name, client_id, src_node_addr, src_node_port_p1))
         socket.close() 
         socket2.close() 
     return
 
+def add_to_DB(port):
+    global context
+    socket = context.socket(zmq.SUB)
+    socket.bind("tcp://*:%s" %  port)
+    socket.setsockopt_string(zmq.SUBSCRIBE, '')
+    print("Listening to ADD_To_DB messages on port: %s.." % ( port))
+    while True:
+        # try:
+        received_message = socket.recv_string(flags=zmq.NOBLOCK)
+        data_node_id,client_id,file_name = socket.recv(2048).decode('utf-8').split('#')
+        print("adding file from master tracker "+data_node_id)
+        db = mysql.connect(host="localhost", user="root", passwd="hydragang", database="data_nodes")
+        cursor = db.cursor()
+        cursor.execute("INSERT INTO file_table (user_id,node_number,file_name,file_path) VALUES ("+client_id+","+data_node_id+",'"+file_name+"','"+file_name+"');")
+        db.commit()
+        cursor.close()
+        print("file added into DB!") 
+#     # return
 
 def replicate():
     # master connect with 1st port of each data node
@@ -266,12 +287,21 @@ if __name__ == "__main__":
         target = replicate, args = (), daemon=True)
     file_log = Process(
         target = file_logger, args=(file_log_port,), daemon = True)
+    add_replica1 = Process(
+        target = add_to_DB, args=(ports[3],), daemon = True)
+    add_replica2 = Process(
+        target = add_to_DB, args=(ports[4],), daemon = True)
+    add_replica3 = Process(
+        target = add_to_DB, args=(ports[5],), daemon = True)
     active_listener0.start()
     active_listener1.start()
     active_listener2.start()
     client_listener.start()
     replicator.start()
     file_log.start()
+    add_replica1.start()
+    add_replica2.start()
+    add_replica3.start()
     while True:
         # print("Master tracker rollin' yon way.")
         time.sleep(0.5)
